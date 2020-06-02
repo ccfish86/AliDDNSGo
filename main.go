@@ -8,6 +8,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/alidns"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -31,7 +32,10 @@ func main() {
 }
 
 func update() {
-	publicIp := getPublicIp()
+	//publicIp := getPublicIp()
+	publicIp := getLocalIP()
+	log.Printf("Local IP: %s...", publicIp)
+
 	subDomains := getSubDomains()
 	for _, sub := range subDomains {
 		if sub.Value != publicIp {
@@ -140,4 +144,22 @@ func updateSubDomain(subDomain *alidns.Record) {
 	if err != nil {
 		log.Print(err.Error())
 	}
+}
+
+func getLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+
+	for _, address := range addrs {
+		// check the address type and if it is not a loopback the display it
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+
+	return ""
 }
