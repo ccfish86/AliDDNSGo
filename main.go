@@ -3,9 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"github.com/ahmetb/go-linq/v3"
-	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/alidns"
 	"io/ioutil"
 	"log"
 	"net"
@@ -14,6 +11,10 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/ahmetb/go-linq/v3"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/alidns"
 )
 
 var commandModel CommandModel
@@ -33,17 +34,25 @@ func main() {
 
 func update() {
 	//publicIp := getPublicIp()
-	publicIp := getLocalIP()
-	log.Printf("Local IP: %s...", publicIp)
+	// publicIp := getLocalIP()
+	// log.Printf("Local IP: %s...", publicIp)
 
 	subDomains := getSubDomains()
 	for _, sub := range subDomains {
+		subModel := linq.From(*configModel.SubDomains).FirstWith(func(subDomain interface{}) bool {
+			return subDomain.(SubDomainModel).Name == sub.RR
+		}).(SubDomainModel)
+		var publicIp string
+		if subModel.Public {
+			publicIp = getPublicIp()
+		} else {
+			publicIp = getLocalIP(subModel.Net)
+		}
+		log.Printf("IP: %s  %s...", sub.RR, publicIp)
 		if sub.Value != publicIp {
 			// 更新域名绑定的 IP 地址。
 			sub.Value = publicIp
-			sub.TTL = linq.From(*configModel.SubDomains).FirstWith(func(subDomain interface{}) bool {
-				return subDomain.(SubDomainModel).Name == sub.RR
-			}).(SubDomainModel).Interval
+			sub.TTL = subModel.Interval
 			updateSubDomain(&sub)
 		}
 	}
@@ -146,7 +155,7 @@ func updateSubDomain(subDomain *alidns.Record) {
 	}
 }
 
-func getLocalIP() string {
+func getLocalIP(innet string) string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return ""
@@ -155,7 +164,8 @@ func getLocalIP() string {
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback the display it
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
+			ip4 := ipnet.IP.To4()
+			if ip4 != nil && strings.Contains(ip4.String(), innet) {
 				return ipnet.IP.String()
 			}
 		}

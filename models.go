@@ -16,4 +16,6 @@ type SubDomainModel struct {
 	Type     string // 子域名记录的类型。
 	Name     string `json:"SubDomain"` // 子域名的名称，例如 sub1.sample.com
 	Interval int64  // 子域名记录的 TTL 时间，单位是秒。
+	Public   bool   // 是否公网
+	Net      string // IP段（多网卡时）
 }
